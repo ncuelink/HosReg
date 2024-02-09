@@ -1,0 +1,1650 @@
+
+<!DOCTYPE HTML>
+
+
+<html>
+	<head>
+		<title>住院訪客預約申請</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=BIG5">
+		<meta http-equiv="Content-Language" content="zh-tw">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+		<script src="/WebAppWeb/js/jquery/jquery-3.6.3.min.js"></script>
+		<script src="/WebAppWeb/js/bootstrap/bootstrap.min.js"></script>
+		<script src="/WebAppWeb/js/jquery/jquery-ui.min.js"></script>
+		<script src="/WebAppWeb/js/jquery/jquery.showLoading.min.js"></script>
+		<script src="/WebAppWeb/js/bootstrap/bootstrap.min.js"></script>
+		<link rel="stylesheet" href="/WebAppWeb/theme/global_formatter.css" >
+		<link rel="stylesheet" href="/WebAppWeb/css/jquery-ui.min.css" >
+		
+		<script type="text/javascript">
+			$(document).ready(function(e){
+				//var hid = "";
+				//var hid = encodeHTML($('#hid').val());
+				var hid = "";
+				$('#pt').hide();
+				if(hid==null||hid=="")
+					hid = localStorage.getItem("hid");
+				if(hid==null||hid=="")
+					hid="1A0";
+				var ckless = true;//registe time range, if false enable night 
+				var cklessw = true;
+				var x=3;//registe date range 
+				var icuflag = true;//let normal ward registe illegal, false as lock
+				var iculockflag = true;//let all ward registe illegal, false as lock
+				var forbidden = true;//don't need to change
+				var registwithproof = false;//快篩控制 
+				var nflag = false;//for doctor explain	
+				var sevenFlag = false;
+				var regL=2;
+				
+				var sURL = "../acmp.do?";
+				if(hid == "2A0"){
+					$('#title').text("屏東榮民總醫院住院探病預約申請");
+					$('body').css('background-color', '#66FFCC');
+					$('#ks').hide();
+					$('#pt').show();
+				}else{
+					$('#title').text("高雄榮民總醫院住院探病預約申請");
+					hid='1A0';
+					//$('body').css({backgroundImage: 'url:(https://working-url)'});
+				}
+				if(true){
+					$.ajax({
+						url : sURL,
+						type : "POST",
+						data: {method:'getAllFlag', hid:hid},
+						contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+						dataType : "json",
+						cache: false,
+						async: false,
+						success : function(data) {
+							//console.log(data);
+							ckless=(data.ckless=='N'?true:false);
+							icuflag=(data.icuflag=='N'?true:false);
+							iculockflag=(data.iculockflag=='N'?true:false);
+							x=data.regTimeR;
+							sevenFlag=(data.iculockflag=='N'?true:false);
+							regL=data.regL;
+						},
+						error:function(jqXHR, textStatus, errorThrown){
+								console.log(errorThrown);
+						}
+					});
+				}
+				$("#athNo").focus();
+				if($("#athNo").val()!= ""){
+					sURL = "../WebAppWeb/acmp.do?";
+					$("#athNo").blur();
+					$("#athNo").attr('readonly', 'readonly');
+				}
+				
+				
+				function rfs(){
+					alert("超時!!!即將重新整理!!!");
+					location.reload();
+				}
+				setTimeout(function(){rfs();},1800000);
+				//if(hid != null){}
+				
+				$('#TN02-1').datepicker({changeMonth: true,changeYear: true,dateFormat:"yy-mm-dd"});
+				//$('#TN02-1').datepicker('setDate', "");
+				$('#TN03-1').datepicker({changeMonth: true,changeYear: true,dateFormat:"yy-mm-dd"});
+				//$('#TN03-1').datepicker('setDate', "");
+				$('#CLC03').datepicker({changeMonth: true,changeYear: true,dateFormat:"yy-mm-dd"});
+				//$('#TC01').datepicker({changeMonth: true,changeYear: true,dateFormat:"yy-mm-dd"});
+	 			//$('#TC01').datepicker('setDate', "");//設定預設日當日
+				//設定可約日期
+				$('#ifsuccess').hide();
+				$('#iffail').hide();
+				$('#ifrpt').hide();
+				$('#ificu').hide();
+				//確認身分證號及居留證號
+				//若正確帶出之前填入的資料(不含地址)
+				$('#Vid').blur(function(){
+					var idchacker = false;
+					if(chkIfId($('#Vid').val())){
+						idchacker=studIdNumberIdentify( 0 , $('#Vid').val());
+					}else{
+						idchacker=studIdNumberIdentify( 1 , $('#Vid').val());
+					}
+					if(idchacker){
+						$.ajax({
+							url : sURL,
+							type : "POST",
+							data: {method:'chkVisrotDate', vid:$('#Vid').val(), hid:hid},
+							contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+							dataType : "json",
+							cache: false,
+							async: false,
+							success : function(data) {
+								$('#Vnm').val(data.name);
+								$('#Vtel').val(data.phono);
+								$('#Vadd').val(data.add);
+								//$("#Vrel option[value='" + data.relation + "']").attr('selected', 'selected');
+								//$("#VaddC option[value='" + data.addc + "']").attr('selected', 'selected');
+								//$('#VaccC').change();
+								//console.log(data.addt);
+								//$("#VaddT option[value='" + data.addt + "']").attr('selected', 'selected');
+							},
+							error:function(jqXHR, textStatus, errorThrown){
+									alert(jqXHR.responseText);
+							}
+						});
+					}
+				});
+				
+				//T-------------------------------------------
+				$("#nonT").click(function(){
+					$("input[name='havT']").each(function() {
+		         		$(this).prop("checked", false);
+		         		$("#TC" + $(this).val()).val("");
+		     		});
+				});
+				$("input[name='havT']").click(function(){
+					$("#nonT").prop("checked", false);
+				});
+				//O-------------------------------------------
+				$("#nonO").click(function(){
+					$("input[name='havO']").each(function() {
+		         		$(this).prop("checked", false);
+		         		$("#OC06").val("");
+		     		});
+				});
+				$("input[name='havO']").click(function(){
+					$("#nonO").prop("checked", false);
+				});
+				//CH-------------------------------------------
+				$("#nonCH").click(function(){//00
+					$("input[name='havCH']").each(function() {
+		         		$(this).prop("checked", false);
+		         		$("#CHC06").val("");
+		     		});
+				});
+				$("input[name='havCH']").click(function(){//01-
+					$("#nonCH").prop("checked", false);
+				});
+				
+				//CL-------------------------------------------
+				$("#nonCL").click(function(){//00
+					$("input[name='havCL']").each(function() {
+		         		$(this).prop("checked", false);
+		     		});
+				});
+				$("input[name='havCL']").click(function(){//02-
+					$("#nonCL").prop("checked", false);
+				});
+					
+				
+				
+				$(":checkbox[name='havT']").click(function(){
+					$.ajax({
+						url : sURL,
+						type : "POST",
+						data: {method:'', arth:arth, hid:hid},
+						contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+						dataType : "json",
+						cache: false,
+						async: false,
+						success : function(data) {
+							
+						},
+						error:function(jqXHR, textStatus, errorThrown){
+								alert(jqXHR.responseText);
+						}
+					});
+					var rtndata="提示說明：因21天內有國外旅遊史，禁止進入醫院，並請配合防疫政策在家隔離，避免到公共場合。";
+						$('#err').append("<br><b style='color: red;'>" + rtndata + "</b>");
+						$('#btnsend').attr('disabled', true);
+				});
+				
+				$.ajax({
+					url: sURL,
+	 				type: "POST",			
+	 				data: {method:'findData',par:'',hid:hid,type:'VaddC'},//傳入
+	 				contentType: 'application/x-www-form-urlencoded; charset=UTF-8',//傳送資料
+	 				dataType: "json",
+	 				cache: false,
+	 				async: false,
+	 				error: function (jqXHR, textStatus, errorThrown) {
+	 					alert(jqXHR.responseText);
+                    },
+                    success: function(data){
+                    	$('#VaddC').empty();
+                    	optionInsJ(data,"VaddC",false);
+                   	}
+				});
+				
+				$('#VaddT').hide();
+				$('#VaddC').change(function(){
+					var par ={ 
+						method:'findData',
+						par:$(this).val(),
+						hid:hid,
+						type:'VaddT'
+					};
+					$.ajax({
+						url: sURL,
+		 				type: "POST",			
+		 				data: par,//傳入
+		 				contentType: 'application/x-www-form-urlencoded; charset=UTF-8',//傳送資料
+		 				dataType: "json",
+		 				cache: false,
+		 				async: false,
+		 				error: function (jqXHR, textStatus, errorThrown) {
+	                        alert(jqXHR.responseText);
+	                    },
+	                    success: function(data){
+	                    	$('#VaddT').show();
+	                    	$('#VaddT').empty();
+	                    	optionInsJ(data,"VaddT",false);
+                    	}
+					});
+				});
+				
+				
+				/*
+				$(":checkbox[name='havCH']").click(function(){
+					var rtndata="提示說明：因近期接觸及出入場所，禁止進入醫院，並請配合防疫政策在家隔離，避免到公共場合。";
+						$('#err').append("<br><b style='color: red;'>" + rtndata + "</b>");
+						$('#btnsend').attr('disabled', true);
+				});
+				
+				$(":checkbox[name='havCL']").click(function(){
+					var rtndata="提示說明：因近一個月內有群聚史，禁止進入醫院，並請配合防疫政策在家隔離，避免到公共場合。";
+						$('#err').append("<br><b style='color: red;'>" + rtndata + "</b>");
+						$('#btnsend').attr('disabled', true);
+				});
+				*/
+				$("#nonT").click(function(){
+					$('#err').empty();
+					$('#btnsend').attr('disabled', false);
+				});
+				/*
+				$("#nonCH").click(function(){
+					$('#err').empty();
+					$('#btnsend').attr('disabled', false);
+				});
+				
+				$("#nonCL").click(function(){
+					$('#err').empty();
+					$('#btnsend').attr('disabled', false);
+				});	
+				*/
+				var tmpck=false;
+				$('#Vtmp').blur(function(){
+					var warn="錯誤的溫度格式!";
+					var rtndata="提示說明：因體溫大於37.5，禁止進入醫院，並請在家休息避免到公共場合";
+					var regx2 = "\\d{2}";
+					var regx4 = "\\d{2}\\.\\d";
+					var tmp = $('#Vtmp').val();
+					if(tmp.length==2){
+						if(tmp.match(regx2)){
+							if(tmp>37.4 || tmp<34){
+								tmpck = false;
+								$('#warnTxt').empty();
+								$('#warnTxt').append(rtndata);
+								$('#btnsend').prop('disabled', true);
+							}else{
+								tmpck = true;
+								$('#warnTxt').empty();
+								$('#btnsend').prop('disabled', false);
+							}
+						}else{
+							alert(warn);
+						}
+					}else if(tmp.length==4){
+						if(tmp.match(regx4)){
+							if(tmp>37.4 || tmp<34){
+								tmpck = false;
+								$('#warnTxt').empty();
+								$('#warnTxt').append(rtndata);
+								$('#btnsend').prop('disabled', true);
+							}else{
+								tmpck = true;
+								$('#warnTxt').empty();
+								$('#btnsend').prop('disabled', false);
+							}
+						}else{
+							alert(warn);
+						}
+					}else if(tmp.length==3){
+						tmp = tmp.substring(0,2) + "." + tmp.substring(2);
+						$('#Vtmp').val(tmp);
+						if(tmp.match(regx4)){
+							if(tmp>37.4 || tmp<34){
+								tmpck = false;
+								$('#warnTxt').empty();
+								$('#warnTxt').append(rtndata);
+								$('#btnsend').prop('disabled', true);
+							}else{
+								tmpck = true;
+								$('#warnTxt').empty();
+								$('#btnsend').prop('disabled', false);
+							}
+						}else{
+							alert(warn+"長度錯誤");
+						}
+					}else{
+						alert(warn);
+					}
+				});
+				$('#Vid').blur(function(){
+					$('#Vid').val(tocap($('#Vid').val()));
+				});
+				
+				$('#athNo').blur(function(){
+					var arth = $('#athNo').val();
+					var icuf=icuflag?"N":"";
+					var iculf=iculockflag?"N":"";
+					if(arth !="" && arth.match("\\d{8}")){
+						$.ajax({
+							url : sURL,
+							type : "POST",
+							data: {method:'srhAuth', arth:arth, hid:hid, icuf:icuf, iculf:iculf, sFlag:sevenFlag},
+							contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+							dataType : "json",
+							cache: false,
+							async: false,
+							success : function(data) {
+								$('#Pnm').val(data.name);
+								$('#Prn').val(data.roomno);
+								$('#Pbn').val(data.bedno);
+								$('#hhis').val(data.hhis);
+								$('#type').val(data.type);
+								//有病危旗幟的話->true ->且僅供當日
+								nflag = data.nflag=="Y"?true:false;//for exception -> 確認為醫師
+								forbidden = icuflag?false:data.icuflag=="Y"?false:true;//
+								//1.check the basic rule, if afternoon can't regist then do nothing
+								cklessw = (data.wardcheck=="Y"?false:true);
+								if(data.chk == 0){
+									$('#setD').focus();
+									$('#setD').blur();
+								}else{
+									$('#sd').empty();
+									$('#sd').append("<p><b>請輸入授權碼始得預約日期</b></p>");
+								}
+								//有病危旗幟或導引旗幟則給填
+								if(!iculockflag && !nflag && $('#reDirect').val()==""){
+									$('#vbk').hide();
+									$("#ificu").show();
+								}								
+							},
+							error:function(jqXHR, textStatus, errorThrown){
+									alert(jqXHR.responseText);
+							}
+						});
+					}else{
+						$('#Pnm').val("");
+						$('#Prn').val("");
+						$('#Pbn').val("");
+					}
+				});
+							
+				$('#athNo').keypress(function(e){
+					code = (e.keyCode ? e.keyCode : e.which);
+					if (code == 13){
+				      $('#athNo').blur();
+				  	}
+				});	
+
+				$('#setD').blur(function(){
+					var arth = $('#athNo').val();
+					var rtndata="";
+					var i=0; //預約起始日期//0為今日
+					var l=i+x;
+					var date = new Date();
+					var afternoonFlag = false;
+					var dh = date.getHours(); var dm = date.getMinutes();//h-m
+					//i=1; l=i+x;
+					/*
+					if(dh>10){
+						i=1; l=i+x;
+					}
+					*/
+					if(dh>18){//10 - 18
+						i=1; l=i+x;
+					}else if(dh>10 && dh<18){
+						ckless = false;
+						afternoonFlag = true;
+					}
+					//ckless = true;//控制只有白天
+					var cnt=0;
+					if($('#reDirect').val() == "" && !forbidden){
+						if(ckless || cklessw){
+							for(i;i<l;i++){
+								//生成日期及查詢是否滿人
+								var dt = addDays(new Date(), i);
+								var dty = dt.getFullYear();
+								var dtm = dt.getMonth()+1;
+								if(dtm<10){
+									dtm = "0"+dtm;
+								}
+								var dtd = dt.getDate();
+								if(dtd<10){
+									dtd = "0"+dtd;
+								}
+								var day = dty+"-"+dtm+"-"+dtd;
+								var hhis = $('#hhis').val();
+								$.ajax({
+									url : sURL,
+									type : "POST",
+									data: {method:'chkDate', arth:arth, day:day, hhis:hhis, hid:hid, regL:regL},
+									contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+									dataType : "html",
+									cache: false,
+									async: false,
+									success : function(data) {
+										if(data == "0"){
+											rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"Y1'> <label for='chkdt"+cnt+"'>"+ day +"上午</label></div></div>";
+											//rtndata += "<div name='getD' style='float:right'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"Y2'> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午</label></div></div>";
+										}else if(data == "1"){
+											rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"Y1'> <label for='chkdt"+cnt+"'>"+ day +"上午</label></div></div>";
+											//rtndata += "<div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"' disabled> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+										}else if(data == "2"){
+											rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"' disabled> <label for='chkdt"+cnt+"'>"+ day +"上午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+											//rtndata += "<div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"Y2'> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午</label></div></div>";
+										}else{
+											rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"' disabled> <label for='chkdt"+cnt+"'>"+ day +"上午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+											//rtndata += "<div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"' disabled> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+										}
+									},
+									error:function(jqXHR, textStatus, errorThrown){
+											alert(jqXHR.responseText);
+									}
+								});
+								cnt++;
+							}
+						}else{
+							for(i;i<l;i++){
+								var dt = addDays(new Date(), i);
+								var dty = dt.getFullYear();
+								var dtm = dt.getMonth()+1;
+								if(dtm<10){
+									dtm = "0"+dtm;
+								}
+								var dtd = dt.getDate();
+								if(dtd<10){
+									dtd = "0"+dtd;
+								}
+								var day = dty+"-"+dtm+"-"+dtd;
+								var hhis = $('#hhis').val();
+								
+								$.ajax({
+									url : sURL,
+									type : "POST",
+									data: {method:'chkDate', arth:arth, day:day, hhis:hhis, hid:hid, regL:regL},
+									contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+									dataType : "html",
+									cache: false,
+									async: false,
+									success : function(data) {
+										if(i==0 && afternoonFlag){
+											if(data == "0"){
+												//rtndata += "<p><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"Y1'> <label for='chkdt"+cnt+"'>"+ day +"上午</label></p>";
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"Y2'> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午</label></div></div>";
+											}else if(data == "1"){
+												//rtndata += "<p><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"Y1'> <label for='chkdt"+cnt+"'>"+ day +"上午</label></p>";
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"' disabled> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+											}else if(data == "2"){
+												//rtndata += "<p><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"' disabled> <label for='chkdt"+cnt+"'>"+ day +"上午<b color='red'> 本時段已額滿(兩位)</b></label></p>";
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"Y2'> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午</label></div></div>";
+											}else{
+												//rtndata += "<p><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"' disabled> <label for='chkdt"+cnt+"'>"+ day +"上午<b color='red'> 本時段已額滿(兩位)</b></label></p>";
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"' disabled> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+											}
+										}else{
+											if(data == "0"){
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"Y1'> <label for='chkdt"+cnt+"'>"+ day +"上午</label></div>";
+												rtndata += "<div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"Y2'> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午</label></div></div>";
+											}else if(data == "1"){
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"Y1'> <label for='chkdt"+cnt+"'>"+ day +"上午</label></div>";
+												rtndata += "<div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"' disabled> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+											}else if(data == "2"){
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"' disabled> <label for='chkdt"+cnt+"'>"+ day +"上午<b color='red'> 本時段已額滿(兩位)</b></label></div>";
+												rtndata += "<div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"Y2'> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午</label></div></div>";
+											}else{
+												rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"' disabled> <label for='chkdt"+cnt+"'>"+ day +"上午<b color='red'> 本時段已額滿(兩位)</b></label></div>";
+												rtndata += "<div name='getD'><input type='checkbox' id='chkdt"+cnt+"n' name='getD' class='cfmswn' value='"+ day+"' disabled> <label for='chkdt"+cnt+"n' style='color:#0668a9;'>"+ day +"下午<b color='red'> 本時段已額滿(兩位)</b></label></div></div>";
+											}
+										}
+										
+																		
+									},
+									error:function(jqXHR, textStatus, errorThrown){
+											alert(jqXHR.responseText);
+									}
+								});
+								
+								cnt++;
+							}
+						}
+					}
+					//有導引旗幟則僅填當日
+					if($('#reDirect').val() != ""){
+						//alert("red");
+						var dty = date.getFullYear();
+						var dtm = date.getMonth()+1;
+						if(dtm<10){
+							dtm = "0"+dtm;
+						}
+						var dtd = date.getDate();
+						if(dtd<10){
+							dtd = "0"+dtd;
+						}
+						var day = dty+"-"+dtm+"-"+dtd;
+						rtndata = "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt99' name='getD' class='cfmsw' value='"+ day+"Y1' checked> <label for='chkdt99'>"+ day +"</label></div></div>";
+					}
+					//病危旗幟需排查該周內是否有登記
+					if(nflag){
+						//rtndata="";
+						for(var s=0;s<7;s++){
+							//生成日期及查詢是否滿人
+							var dt = addDays(new Date(), s);
+							var dty = dt.getFullYear();
+							var dtm = dt.getMonth()+1;
+							if(dtm<10){
+								dtm = "0"+dtm;
+							}
+							var dtd = dt.getDate();
+							if(dtd<10){
+								dtd = "0"+dtd;
+							}
+							var day = dty+"-"+dtm+"-"+dtd;//get day 
+							var hhis = $('#hhis').val();
+							//需要一支新的action查詢該日期是否有
+							$.ajax({
+								url : sURL,
+								type : "POST",
+								data: {method:'chkisDOCEXPLN', day:day, hhis:hhis, hid:hid},
+								contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+								dataType : "html",
+								cache: false,
+								async: false,
+								success : function(data) {
+									if(data == "Y"){
+										rtndata += "<div name='getDD'><div name='getD'><input type='checkbox' id='chkdt"+cnt+"' name='getD' class='cfmsw' value='"+ day+"Y1' checked> <label for='chkdt"+cnt+"'>"+ day +"-醫師通知解釋病情</label></div></div>";
+									}
+								},
+								error:function(jqXHR, textStatus, errorThrown){
+										alert(jqXHR.responseText);
+								}
+							});
+							cnt++;
+						}
+					}
+					
+					$('#sd').empty();
+					$('#sd').append(rtndata);
+					//當
+					singleValueCheckbox('getD', "#sd");
+					/*
+					$(":checkbox[name='getD']", "#sd").change(function(){
+						alert(this.checked);
+						if(this.checked){
+							alert($(this).val());
+							$(":checkbox[value=" + $(this).val() + "]",'#sd').prop("checked", false);
+							$(this).prop("checked", true);
+						}
+					});
+					*/
+				});
+				
+				$('#btnsend').click(function(){
+					var Sdt="", S1="", S2="", S3="", S4="", Sdt2="", STN="";
+					var arth = $('#athNo').val();//授權碼
+					var pnm = $('#Pnm').val();//病名				
+					var hhis = $('#hhis').val();//病號
+					var temp = "";
+					
+						//有病危旗幟或導引旗幟則無須檢核
+						if($('#reDirect').val() == "" && !nflag){//正常進入
+							$(":checkbox[name='getD']").each(function(){
+								if($(this).is(':checked')){
+									var day = $(this).val();//yyyy-mm-ddY1/2
+									$.ajax({
+										url : sURL,
+										type : "POST",
+										data: {method:'chkDate2', arth:arth, day:day, hhis:hhis, hid:hid, regL:regL},
+										contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+										dataType : "html",
+										cache: false,
+										async: false,
+										success : function(data) {
+											temp=data;
+										},
+										error:function(jqXHR, textStatus, errorThrown){
+												alert(jqXHR.responseText);
+										}
+									});
+									
+									if(temp == "0"){
+										if(Sdt == ""){
+											Sdt = $(this).val();
+										}else{
+											Sdt += "X" + $(this).val();	
+										}
+										if(Sdt2 == ""){
+											Sdt2 = $("label[for='"+ $(this).attr('id') + "']").text();
+										}else{
+											Sdt2 += "<br>" + $("label[for='"+ $(this).attr('id') + "']").text();
+										}
+									}else if(temp == "1"){
+										if(Sdt2 == ""){
+											Sdt2 = $("label[for='"+ $(this).attr('id') + "']").text();
+											Sdt2 += "本日已額滿";
+										}else{
+											Sdt2 += "<br>" + $("label[for='"+ $(this).attr('id') + "']").text();
+											Sdt2 += "本日已額滿";
+										}
+									}
+								
+									
+								}
+							});
+						}else{
+							$(":checkbox[name='getD']").each( function(){
+								if($(this).is(':checked')){
+									if(Sdt == ""){
+									Sdt = $(this).val();
+									}else{
+										Sdt += "X" + $(this).val();	
+									}
+									if(Sdt2 == ""){
+										Sdt2 = $("label[for='"+ $(this).attr('id') + "']").text();
+									}else{
+										Sdt2 += "<br>" + $("label[for='"+ $(this).attr('id') + "']").text();
+									}
+								}
+							});
+						}
+					var vid = $('#Vid').val();//身分證號
+					var ckid = "";
+					if(chkIfId( vid )){//確認身分號
+						ckid=0;
+					}else{
+						ckid=1;
+					}
+					var flag=false;
+					var vnm = $('#Vnm').val().trim();//名字
+					var vtal = $('#Vtel').val().trim();//電話
+					var vadd =($('#VaddC option:selected').val()==''?'':$('#VaddC option:selected').text())+($('#VaddT option:selected').val()==''?'':$('#VaddT option:selected').text())+ $('#Vadd').val().trim();//住址
+					var vrel = $('#Vrel').val().trim();//關係
+					var type = $('#type').val().trim();//類別
+					var tmp = $('#Vtmp').val().trim();//體溫
+					var bdn = $('#Pbn').val();//床號
+					var rmn = $('#Prn').val();//房號
+					var att = "您無選擇日期";
+					var abt = "您的基本資料填寫有誤";
+					if(Sdt!=""){
+						$.ajax({
+							url: sURL,
+							type: "POST",			
+							data: {method:'chkisext',arth:arth, vid:vid, day:Sdt, hid:hid},//傳入
+							contentType: 'application/x-www-form-urlencoded; charset=UTF-8',//傳送資料
+							dataType: "html",
+							cache: false,
+							async: false,
+							error: function (jqXHR, textStatus, errorThrown) {
+								alert(jqXHR.responseText);
+							},
+							success: function(data){
+								if(data == null){
+									alert("錯誤!!");
+								}else{
+									if(data == ""){
+										att="您選擇的日期皆已預約!";		
+									}
+									Sdt=data;
+								}
+							}
+						});
+					}
+					if(vtal!=""){
+						if(vtal.match("\\d{10}")){
+							flag = true;
+						}else{
+							abt = "您的電話欄位填寫有誤";
+						}
+					}
+					if(tmpck){
+						if(vnm!="" && vadd!="" && flag && $('#Vst').is(':checked')){
+							if(	$('#stm').is(':checked')){
+							if(Sdt!=""){//有填認證號及日期
+								if(studIdNumberIdentify(ckid, vid)){//ID
+									var scu = "0";
+									$(":checkbox[name='havT']").each(function(){
+											if($(this).is(':checked')){
+												if($("#TC" + $(this).val()).val() != ""){//勾選後有填
+													if(S1 == ""){
+														S1 += $(this).val() + "X" + $("#TC" + $(this).val()).val();
+													}else{
+														S1 += "X" + $(this).val() + "X" + $("#TC" + $(this).val()).val();
+													}	 
+												}else{
+													//alert("所選項未填");
+													scu="99";
+												}
+											}
+										});	
+									if(($("#nonT").is(':checked') || $(":checkbox[name='havT']").is(':checked')) && scu=="0"){//旅遊有勾選
+										//選擇非無並有填及選無
+										if($("#nonT").is(':checked')){//旅遊勾無
+											S1 += $("#nonT").val();
+										}
+										$(":checkbox[name='havO']").each(function(){//職業
+											if($(this).is(':checked')){
+												if( $(this).val()== "06" ){
+													if($("#OC06").val() == ""){
+														alert("所選項未填");
+														scu = "99";
+													}else{
+														if(S2 == ""){
+															S2 += $("#O06").val() + "X" + $("#OC06").val();
+														}else{
+															S2 += "X" + $("#O06").val() + "X" + $("#OC06").val();
+														}
+													}	 
+												}else{
+													if(S2 == ""){
+														S2 += $(this).val();
+													}else{
+														S2 += "X" + $(this).val();
+													}
+												}	
+											}
+										});
+										if(($("#nonO").is(':checked') || $(":checkbox[name='havO']").is(':checked'))&& scu=="0"){//職業有勾選
+											if($("#nonO").is(':checked')){//職業無
+												S2 += $("#nonO").val();
+											}
+											$(":checkbox[name='havCH']").each(function(){
+												if($(this).is(":checked")){
+													if($(this).val() == "06"){
+														if($("#CHC06").val() == ""){
+															alert("所選項未填");
+															scu = "99";
+														}else{
+															if(S3 == ""){
+																S3 += $(this).val() + "X" + $("#CHC06").val();
+															}else{
+																S3 += "X" + $(this).val() + "X" + $("#CHC06").val();
+															}
+														}
+													}else{
+														if(S3 == ""){
+															S3 += $(this).val();
+														}else{
+															S3 += "X" + $(this).val();
+														}
+													}
+												}
+											});
+											if(($("#nonCH").is(':checked') || $(":checkbox[name='havCH']").is(':checked'))&& scu=="0"){//接觸史有勾選
+												if($("#nonCH").is(':checked')){//職業無
+													S3 += $("#nonCH").val();
+												}
+												
+												$(":checkbox[name='havCL']").each(function(){
+												if($(this).is(":checked")){
+													if($(this).val() == "03"){
+														if($("#CLC03").val() == ""){
+															alert("日期未選");
+															scu = "99";
+														}else{
+															if(S4 == ""){
+																S4 += $(this).val() + "X" + $("#CLC03").val();
+															}else{
+																S4 += "X" + $(this).val() + "X" + $("#CLC03").val();
+															}
+														}
+													}else{
+														if(S4 == ""){
+															S4 += $(this).val();
+														}else{
+															S4 += "X" + $(this).val();
+														}
+													}
+												}
+											});
+												if(($("#nonCL").is(':checked') || $(":checkbox[name='havCL']").is(':checked'))&& scu=="0"){//群聚史有勾選
+													if($("#nonCL").is(':checked')){//職業無
+														S4 += $("#nonCL").val();
+													}
+											if(registwithproof){//是否需要快篩?
+												if(!$(":checkbox[name='tn']").is(':checked')){
+													alert("檢驗陰性證明未勾選");
+													return;
+												}
+												scu="0";
+													$(":checkbox[name='tn']").each(function(){
+														if($(this).is(":checked")){
+															if($(this).val() == "02"){
+																if($("#TN02-1").val() == ""){
+																	alert("抗原快篩 - 採檢日期未填");
+																	scu = "99";
+																}
+																if(!$("#TN02-2").val() == "" || !$("#TN02-3").val() == ""){//有填其中之一即可送出
+																	if(STN == ""){
+																		STN += $(this).val() + "X" + $("#TN02-1").val()+"/"+$("#TN02-2").val()+"/"+$("#TN02-3").val();
+																	}else{
+																		STN += "X" + $(this).val() + "X" + $("#TN02-1").val()+"/"+$("#TN02-2").val()+"/"+$("#TN02-3").val();
+																	}
+																}else{
+																	alert("抗原快篩 - 檢驗醫院/檢驗試劑廠牌請選填一項");
+																	scu = "99";
+																}
+																
+															}else if($(this).val() == "03"){
+																if($("#TN03-1").val() == ""){
+																	alert("病毒核酸檢驗(PCR) - 採檢日期未填");
+																	scu = "99";
+																}
+																if($("#TN03-2").val() == ""){
+																	alert("病毒核酸檢驗(PCR) - 檢驗醫院未填");
+																	scu = "99";
+																}
+																if(STN == ""){
+																	STN += $(this).val() + "X" + $("#TN03-1").val()+"/"+$("#TN03-2").val();
+																}else{
+																	STN += "X" + $(this).val() + "X" + $("#TN03-1").val()+"/"+$("#TN03-2").val();
+																}
+															}else{
+																if(STN == ""){
+																	STN += $(this).val();
+																}else{
+																	STN += "X" + $(this).val();
+																}
+															}
+														}
+													});
+													if(scu=="99"||STN==""){														
+														return;
+													};
+											}
+												
+													
+													var fg1="", fg2="", fg3="";
+													$.ajax({//確認送出
+														url: sURL,
+										 				type: "POST",			
+										 				data: {method:'insVP',bdn:bdn, rmn:rmn, type:type, tmp:tmp, arth:arth, pnm:pnm, hhis:hhis, sdt:Sdt, vid:vid,  vnm:vnm, vtal:vtal, vadd:vadd, vrel:vrel, hid:hid},//傳入
+										 				contentType: 'application/x-www-form-urlencoded; charset=UTF-8',//傳送資料
+										 				dataType: "html",
+										 				cache: false,
+										 				async: false,
+										 				error: function (jqXHR, textStatus, errorThrown) {
+									                           alert(jqXHR.responseText);
+									                    },
+									                    success: function(data){
+										                    if(data == null){
+												 				alert("錯誤!!");
+												 			}else{
+												 				if(data == "0"){
+																	fg1= data;
+												 				}else{
+												 					fg1= data;
+												 				}
+												 			}
+									                    }
+													});
+													$.ajax({//全部確認後正式送出TOCC
+														url: sURL,
+										 				type: "POST",			//id,T,O,C,C,source, system
+										 				data: {method:'insTOCC',arth:arth, fid:vid, fT:S1, fO:S2, fCH:S3, fCL:S4, hid:hid},//傳入
+										 				contentType: 'application/x-www-form-urlencoded; charset=UTF-8',//傳送資料
+										 				dataType: "html",
+										 				cache: false,
+										 				async: false,
+										 				error: function (jqXHR, textStatus, errorThrown) {
+									                           alert(jqXHR.responseText);
+									                    },
+									                    success: function(data){
+										                    if(data == null){
+												 				alert("錯誤!!");
+												 			}else{
+												 				if(data == "0"){
+																	fg2= data;
+												 				}
+												 			}
+									                    }
+													});
+													if(registwithproof){//建立快篩
+														$.ajax({//全部確認後正式送出陰性檢驗
+															url: sURL,
+											 				type: "POST",			//id,T,O,C,C,source, system
+											 				data: {method:'insTN',arth:arth, fid:vid, fTN:STN, hid:hid},//傳入
+											 				contentType: 'application/x-www-form-urlencoded; charset=UTF-8',//傳送資料
+											 				dataType: "html",
+											 				cache: false,
+											 				async: false,
+											 				error: function (jqXHR, textStatus, errorThrown) {
+										                           alert(jqXHR.responseText);
+										                    },
+										                    success: function(data){
+											                    if(data == null){
+													 				alert("錯誤!!");
+													 			}else{
+													 				if(data == "0"){
+																		fg3= data;
+													 				}
+													 			}
+										                    }
+														});
+													}
+													if(fg1=="0" && fg2=="0" ){ //&& fg3=="0"
+														$('#sd').empty();
+														$(":checkbox").prop("checked", false);
+														$(":text").val("");
+														$('#sd').append("<p><b>請先輸入授權碼始得預約日期</b></p>");
+														$('#vbk').hide();
+														$('#Pnmend').val(pnm);
+														$('#Prnend').val(rmn);
+														$('#Pbnend').val(bdn);
+														$('#Vidend').val(vid);
+														$('#Vnmend').val(vnm);
+														$('#Vrelend').val(vrel);
+														$('#Vndt').append(Sdt2);
+														$('#ifsuccess').show();
+														$('html, body').scrollTop(0);
+														
+													}else if(fg1=="99" && fg2=="0"){
+														$('#vbk').hide();
+														$('#ificu').show();
+														$('html, body').scrollTop(0);
+													}else{
+														$('#vbk').hide();
+														$('#ifrpt').show();
+														$('html, body').scrollTop(0);
+													}
+												}else{
+													alert("群聚史錯誤");
+													scu = "00";
+												}
+											}else{
+												alert("接觸史錯誤");
+												scu = "00";
+											}
+										}else{
+											alert("職業別錯誤");
+											scu = "00";
+										}
+									}else{
+										alert("旅遊史錯誤");
+										scu = "00";
+									}
+									//alert($("#nonT").is(':checked'));
+								}else{
+									alert("身分別錯誤");
+									scu = "00";
+								}
+							}else{
+								alert(att);
+							}
+						}else{
+							alert('您無勾選聲明');
+						}	
+					}else{
+						alert(abt);
+					}
+				}else{
+					alert("提示說明：因體溫大於37.5，禁止進入醫院，並請在家休息避免到公共場合");
+				}
+				$('#reset').click(function(){
+					$('#vbk').show();
+					$('#ifrpt').hide();
+				});				
+				});
+				
+			});//document - end
+			
+			function htmlEncode(str){
+			    return String(str).replace(/[^\w. ]/gi, function(c){
+			        return '&#'+c.charCodeAt(0)+';';
+			    });
+			}
+			
+			function encodeHTML (str) {
+				return str.replace(/javascript:/gi, '').replace(/[^\w-_. ]/gi, function (c) {
+					return '&#;';
+				});
+			}
+			
+			function singleValueCheckbox(name){
+				$(":checkbox[name="+ name +"]").change(function(){
+					if(this.checked){
+						$(":checkbox[value=" + $(this).val() + "]").prop("checked", false);
+						$(this).prop("checked", true);
+					}
+				});
+			}
+			
+			//only use for checkbox and should have value to target 
+			function singleValueCheckbox(name, divid){
+				if(divid!=""){//have set area
+					$(":checkbox[name="+ name +"]", divid).change(function(){
+						if(this.checked){
+							$(":checkbox[value=" + $(this).val() + "]",divid).prop("checked", false);
+							$(this).prop("checked", true);
+						}
+					});
+				}else{//global
+					singleValueCheckbox(name);
+				}
+			}
+			
+			function optionInsJ(Array, target, useSelf){//for JSON
+				if(useSelf){
+					$.each(Array, function(index, value){
+						$("#"+target).append($("<option></option>").attr("value", value).text(value));
+					});
+				}else{
+					$("#"+target).append($("<option></option>").attr("value", "").text("----選擇項目----"));
+					$.each(Array, function(key, value){
+						$("#"+target).append($("<option></option>").attr("value", key).text(value));
+					});
+				}
+			}
+			
+			//判斷是否為身分證號
+			function chkIfId( hidno ){
+				var chkId = hidno.split("");
+				if(chkId[1].match("\\D{1}")){
+					return false;
+				}else{
+					return true;
+				}
+			}
+			
+			function tocap( str ){
+				str = str.toUpperCase();
+				return str;
+			}
+			
+			//身分證號+居留證號
+			function studIdNumberIdentify(nationality, idNumber){     
+			    studIdNumber = idNumber.toUpperCase();
+			    //本國人
+			    if(nationality == 0){
+			        //驗證填入身分證字號長度及格式
+			        if(studIdNumber.length != 10){
+			            alert("您輸入的身分證字號不正確!\n請重新輸入,謝謝!!");
+			            return false;
+			        }
+			        //格式，用正則表示式比對第一個字母是否為英文字母
+			        if(isNaN(studIdNumber.substr(1,9)) || 
+			                (!/^[A-Z]$/.test(studIdNumber.substr(0,1)))){
+			            alert("您輸入的身分證字號不正確!\n請重新輸入,謝謝!!");
+			            return false;
+			        }			         
+			        var idHeader = "ABCDEFGHJKLMNPQRSTUVXYWZIO"; //按照轉換後權數的大小進行排序
+			        //這邊把身分證字號轉換成準備要對應的
+			        studIdNumber = (idHeader.indexOf(studIdNumber.substring(0,1))+10) +''+ studIdNumber.substr(1,9);
+			        //開始進行身分證數字的相乘與累加，依照順序乘上1987654321
+			        s = parseInt(studIdNumber.substr(0,1)) + 
+			        parseInt(studIdNumber.substr(1,1)) * 9 + 
+			        parseInt(studIdNumber.substr(2,1)) * 8 + 
+			        parseInt(studIdNumber.substr(3,1)) * 7 +            
+			        parseInt(studIdNumber.substr(4,1)) * 6 + 
+			        parseInt(studIdNumber.substr(5,1)) * 5 + 
+			        parseInt(studIdNumber.substr(6,1)) * 4 + 
+			        parseInt(studIdNumber.substr(7,1)) * 3 + 
+			        parseInt(studIdNumber.substr(8,1)) * 2 + 
+			        parseInt(studIdNumber.substr(9,1));			 
+			        checkNum = parseInt(studIdNumber.substr(10,1));
+			        //模數 - 總和/模數(10)之餘數若等於第九碼的檢查碼，則驗證成功
+			        //若餘數為0，檢查碼就是0
+			        if((s % 10) == 0 || (10 - s % 10) == checkNum){
+			            return true;
+			        }
+			        else{
+			       		alert("您輸入的身分證字號不正確!\n請重新輸入,謝謝!!");
+			            return false;
+			        }  
+			    }
+			    //外籍生，居留證號規則跟身分證號差不多，只是第二碼也是英文字母代表性別，跟第一碼轉換二位數字規則相同，但只取餘數
+			    else if(nationality == 1){
+			         if(studIdNumber.length != 10){
+			         	return false;
+			         }else{
+			         	//驗證填入身分證字號長度及格式
+				        if(studIdNumber.length != 10){
+				            alert("您輸入的居留證號不正確!\n請重新輸入,謝謝!!");
+				            return false;
+				        }
+				        //格式，用正則表示式比對第一個字母是否為英文字母
+				        if(isNaN(studIdNumber.substr(2,8)) || 
+				                (!/^[A-Z]$/.test(studIdNumber.substr(0,1))) || 
+				                    (!/^[A-Z]$/.test(studIdNumber.substr(1,1)))){
+				            alert("您輸入的居留證號不正確!\n請重新輸入,謝謝!!");
+				            return false;
+				        }
+				         
+				        var idHeader = "ABCDEFGHJKLMNPQRSTUVXYWZIO"; //按照轉換後權數的大小進行排序
+				        //這邊把身分證字號轉換成準備要對應的
+				        studIdNumber = (idHeader.indexOf(studIdNumber.substring(0,1))+10) + 
+				        '' + ((idHeader.indexOf(studIdNumber.substr(1,1))+10) % 10) + '' + studIdNumber.substr(2,8);
+				        //開始進行身分證數字的相乘與累加，依照順序乘上1987654321
+				 
+				        s = parseInt(studIdNumber.substr(0,1)) + 
+				        parseInt(studIdNumber.substr(1,1)) * 9 + 
+				        parseInt(studIdNumber.substr(2,1)) * 8 + 
+				        parseInt(studIdNumber.substr(3,1)) * 7 +            
+				        parseInt(studIdNumber.substr(4,1)) * 6 + 
+				        parseInt(studIdNumber.substr(5,1)) * 5 + 
+				        parseInt(studIdNumber.substr(6,1)) * 4 + 
+				        parseInt(studIdNumber.substr(7,1)) * 3 + 
+				        parseInt(studIdNumber.substr(8,1)) * 2 + 
+				        parseInt(studIdNumber.substr(9,1));
+				 
+				        //檢查號碼 = 10 - 相乘後個位數相加總和之尾數。
+				        checkNum = parseInt(studIdNumber.substr(10,1));
+				        //模數 - 總和/模數(10)之餘數若等於第九碼的檢查碼，則驗證成功
+				        ///若餘數為0，檢查碼就是0
+				        if((s % 10) == 0 || (10 - s % 10) == checkNum){
+				            return true;
+				        }
+				        else{
+				        	alert("您輸入的居留證號不正確!\n請重新輸入,謝謝!!");
+				            return false;
+				        }
+			         }
+			    }
+			}//chk id end-------------------
+			/*設定日期*/
+			function addDays(dateObj, numDays) {
+			   dateObj.setDate(dateObj.getDate() + numDays);
+			   return dateObj;
+			}
+			
+		</script>
+		<style type="text/css">
+			p {
+			    display: block;
+			    margin-block-start: 1em;
+			    margin-block-end: 1em;
+			    margin-inline-start: 0px;
+			    margin-inline-end: 0px;
+			}
+			
+			div[name="getD"]{
+				width:50%;
+			    margin-block-start: 10px;
+			    margin-block-end: 10px;
+			    margin-inline-start: 0px;
+			    margin-inline-end: 0px;
+			}
+			
+			div[name="getDD"]{
+				display: flex;
+			}
+			
+			.bg{
+				-webkit-border-radius: 8px;
+			    background-color: #fff;
+			    border: #878787 solid 1px;
+			    font-size: 12pt;
+			    overflow: hidden;
+			    padding: 0;
+			    position: static;
+			    display: block;
+			    height: auto;
+			    width: auto;
+			    list-style: none;
+			}
+			
+			.title{
+				position: relative;
+			    font-weight: bold;
+			    font-size: 17px;
+			    right: 20px;
+			    left: 9px;
+			    color: #4C4C4C;
+			    text-shadow: #FFF 0 1px 0;
+			    padding: 1px 0 3px 8px;
+			}
+			
+			.fbg{
+				background:#c5ccd4;
+			}			
+			
+			.cfmsw {
+				-webkit-appearance: none;
+				-moz-appearance: none;
+				-o-appearance: none;
+				width:42px;
+				height:20px;
+				background-color:#fff;
+				border:1px solid #93959a;
+				border-radius:50px;
+				-webkit-box-shadow: inset -20px 0px 0px 0px #D9DADC;
+				box-shadow: inset -20px 0px 0px 0px #D9DADC;
+				-webkit-transition-duration: 107ms;
+				transition-duration: 107ms;
+			}
+			.cfmsw:checked {
+				-webkit-box-shadow: inset 20px 0px 0px 1px #35e873;
+				box-shadow: inset 20px 0px 0px 1px #35e873;
+			}
+			.cfmsw::-ms-check {
+				-ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)"; /* IE 8 */
+				filter: alpha(opacity=0); /* IE 5-7 */
+				opacity: 0;
+			}
+			
+			.cfmswn {
+				-webkit-appearance: none;
+				-moz-appearance: none;
+				-o-appearance: none;
+				width:42px;
+				height:20px;
+				background-color:#fff;
+				border:1px solid #93959a;
+				border-radius:50px;
+				-webkit-box-shadow: inset -20px 0px 0px 0px #D9DADC;
+				box-shadow: inset -20px 0px 0px 0px #D9DADC;
+				-webkit-transition-duration: 107ms;
+				transition-duration: 107ms;
+			}
+			.cfmswn:checked {
+				-webkit-box-shadow: inset 20px 0px 0px 1px #3e94cd;
+				box-shadow: inset 20px 0px 0px 1px #3e94cd;
+			}
+			.cfmswn::-ms-check {
+				-ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)"; /* IE 8 */
+				filter: alpha(opacity=0); /* IE 5-7 */
+				opacity: 0;
+			}
+
+			input[type="checkbox"]{
+			    float: right;
+			    line-height: normal;
+			}
+			
+			input[name="getD"]{
+				float: right;
+			}
+			
+			.btn {
+				-moz-box-shadow:inset 0px 1px 0px 0px #ffffff;
+				-webkit-box-shadow:inset 0px 1px 0px 0px #ffffff;
+				box-shadow:inset 0px 1px 0px 0px #ffffff;
+				background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #ffffff), color-stop(1, #f6f6f6));
+				background:-moz-linear-gradient(top, #ffffff 5%, #f6f6f6 100%);
+				background:-webkit-linear-gradient(top, #ffffff 5%, #f6f6f6 100%);
+				background:-o-linear-gradient(top, #ffffff 5%, #f6f6f6 100%);
+				background:-ms-linear-gradient(top, #ffffff 5%, #f6f6f6 100%);
+				background:linear-gradient(to bottom, #ffffff 5%, #f6f6f6 100%);
+				filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f6f6f6',GradientType=0);
+				background-color:#ffffff;
+				-webkit-border-radius:6px;
+				-moz-border-radius:6px;
+				border-radius:6px;
+				border:1px solid #dcdcdc;
+				display:inline-block;
+				cursor:pointer;
+				color:#666666;
+				font-family:Arial;
+				font-size:15px;
+				font-weight:bold;
+				padding:6px 24px;
+				text-decoration:none;
+				text-shadow:0px 1px 0px #ffffff;
+			}
+			.btn:hover {
+				background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #f6f6f6), color-stop(1, #ffffff));
+				background:-moz-linear-gradient(top, #f6f6f6 5%, #ffffff 100%);
+				background:-webkit-linear-gradient(top, #f6f6f6 5%, #ffffff 100%);
+				background:-o-linear-gradient(top, #f6f6f6 5%, #ffffff 100%);
+				background:-ms-linear-gradient(top, #f6f6f6 5%, #ffffff 100%);
+				background:linear-gradient(to bottom, #f6f6f6 5%, #ffffff 100%);
+				filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#f6f6f6', endColorstr='#ffffff',GradientType=0);
+				background-color:#80b5ea;
+			}
+
+			.btn2 {
+				-moz-box-shadow:inset 0px 1px 0px 0px #97c4fe;
+				-webkit-box-shadow:inset 0px 1px 0px 0px #97c4fe;
+				box-shadow:inset 0px 1px 0px 0px #97c4fe;
+				background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #3d94f6), color-stop(1, #1e62d0));
+				background:-moz-linear-gradient(top, #3d94f6 5%, #1e62d0 100%);
+				background:-webkit-linear-gradient(top, #3d94f6 5%, #1e62d0 100%);
+				background:-o-linear-gradient(top, #3d94f6 5%, #1e62d0 100%);
+				background:-ms-linear-gradient(top, #3d94f6 5%, #1e62d0 100%);
+				background:linear-gradient(to bottom, #3d94f6 5%, #1e62d0 100%);
+				filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#3d94f6', endColorstr='#1e62d0',GradientType=0);
+				background-color:#3d94f6;
+				-webkit-border-radius:6px;
+				-moz-border-radius:6px;
+				border-radius:6px;
+				border:1px solid #337fed;
+				display:inline-block;
+				cursor:pointer;
+				color:#ffffff; 
+				font-family:Arial;
+				font-size:15px;
+				font-weight:bold;
+				padding:6px 24px;
+				text-decoration:none;
+				text-shadow:0px 1px 0px #1570cd;
+			}
+			
+			.btn2:hover {
+				background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #1e62d0), color-stop(1, #3d94f6));
+				background:-moz-linear-gradient(top, #1e62d0 5%, #3d94f6 100%);
+				background:-webkit-linear-gradient(top, #1e62d0 5%, #3d94f6 100%);
+				background:-o-linear-gradient(top, #1e62d0 5%, #3d94f6 100%);
+				background:-ms-linear-gradient(top, #1e62d0 5%, #3d94f6 100%);
+				background:linear-gradient(to bottom, #1e62d0 5%, #3d94f6 100%);
+				filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#1e62d0', endColorstr='#3d94f6',GradientType=0);
+				background-color:#1e62d0;
+			}
+			
+			input[type="text"] {
+			     padding: 5px;
+			     font-size: 16px;
+			     border-width: 1px;
+			     border-color: #CCCCCC;
+			     background-color: #FFFFFF;
+			     color: #000000;
+			     border-style: solid;
+			     border-radius: 0px;
+			     box-shadow: 0px 0px 5px rgba(66,66,66,.75);
+			     
+			}
+			 input[type="text"]:focus {
+			     outline:none;
+				 box-shadow: 0px 0px 6px rgba(36,84,206,.73);
+			}
+			select {
+			     padding: 4px;
+			     font-size: 16px;
+			     border-width: 1px;
+			     border-color: #CCCCCC;
+			     background-color: #FFFFFF;
+			     color: #000000;
+			     border-style: solid;
+			     border-radius: 0px;
+			     box-shadow: 0px 0px 5px rgba(66,66,66,.75);  
+			}
+			select:focus {
+			     outline:none;
+				 box-shadow: 0px 0px 6px rgba(36,84,206,.73);
+			}
+			
+		</style>
+	</head>
+	<body>
+		<input type="hidden" id="setD"><input type="hidden" id="hhis"><input type="hidden" id="type"><input type="hidden" id="reDirect" value="">
+		<div>
+			<div align="center">
+				<p style="font-size: 28px"><b id="title">住院探病預約申請</b></p>
+			</div>
+		</div>
+		<div id="vbk">
+			<input type="hidden" id="chkname">
+			<div>
+				<div class="title">
+					<b>基本資料</b>
+				</div>
+				<div class="bg">
+					<p>
+						<label for="athNo"><b>授權碼:</b></label>
+						<input type="text" id="athNo" size="10" maxlength="8" value="">
+					</p>
+					<div style="color: red;">探病者請徵得醫師同意，授權碼請洽家屬或護理站</div>
+					<p>
+						<label for="Pnm"><b>病人姓名:</b></label>
+						<input type="text" id="Pnm" size="10" maxlength="10" readonly="readonly">
+					</p>
+					<p>
+						<label for="Prn"><b>所屬病房:</b></label>
+						<input type="text" id="Prn" size="10" maxlength="10" readonly="readonly">
+					</p>	
+					<p>
+						<label for="Pbn"><b>所屬病床:</b></label>
+						<input type="text" id="Pbn" size="10" maxlength="10" readonly="readonly">
+					</p>
+				</div>
+			</div>
+			<div>
+				<div class="title">
+					<b>選擇欲申請日期</b>
+				</div>
+				<div class="bg" id="sd">	
+					<p><b>請先輸入授權碼始得預約日期</b></p>				
+				</div>
+			</div>
+			<div>
+				<div class="title">
+					<b>詳細資料(探病者)</b>
+				</div>
+				<div class="bg">
+					<p>
+						<label for="Vid"><b>探病者的身分證/居留證號:</b></label>
+						<input type="text" id="Vid" size="10" maxlength="10">
+					</p>
+					<p>
+						<label for="Vnm"><b>探病者的姓名:</b></label>
+						<input type="text" id="Vnm" size="10" maxlength="10">
+					</p>
+					<p>
+						<label for="Vtel"><b>探病者的手機號碼:</b></label>
+						<input type="text" id="Vtel" size="10" maxlength="10">
+					</p>
+					<p>
+						<label for="Vadd"><b>探病者的地址:</b></label>
+						<select id="VaddC" class="isADD"></select>&nbsp;&nbsp;<select id="VaddT" class="isADD"></select>
+						<input type="text" id="Vadd" size="30" maxlength="30">
+					</p>
+					<p>
+						<label for="Vrel"><b>探病者與病人的關係:</b></label>
+						<select id="Vrel">
+							<option value="父母">父母</option>
+							<option value="配偶">配偶</option>
+							<option value="子女">子女</option>
+							<option value="親友">親友</option>
+							<option value="朋友">朋友</option>
+							<option value="看護">看護</option>
+							<option value="戒護">戒護</option>
+						</select>
+					</p>
+					<p id="Vtp">
+						<label for="Vtmp"><b>探病者的體溫:</b></label>
+						<input type="text" id="Vtmp" size="10" maxlength="4">
+						<br><b style='color: red;' id='warnTxt'></b>
+					</p>
+					<p>
+						<label for="Vst"><b>預約人最近21天內並無發燒、咳嗽、呼吸急促、喉嚨痛、流鼻水∕鼻塞、腹瀉、嗅(味)覺異常、全身倦怠、四肢無力症狀。</b></label>
+						<input type="checkbox" id="Vst" class="cfmsw">
+					</p>
+				</div>
+			</div>
+			<br>
+			
+			<div hidden>
+				<div class="title">
+					<b>3日內檢驗陰性證明?	</b>
+				</div>
+				<div class="bg">
+				
+								
+					<p><span><label><input type="checkbox" value="02" class="cfmsw" name="tn">抗原快篩
+						&nbsp;檢驗日期 :&nbsp;<input type="text" placeholder="日期格式(西元年-月-日)" id="TN02-1" readonly="readonly" style="cursor:pointer;">
+						<br>檢驗醫院 :&nbsp;<input type="text" placeholder="請填檢驗醫院" id="TN02-2">
+						<br>檢驗試劑廠牌 :&nbsp;<input type="text" placeholder="請填檢驗試劑廠牌" id="TN02-3">
+						</label>
+					</span></p>			
+					<p><span><label><input type="checkbox" value="03" class="cfmsw" name="tn">病毒核酸檢驗(PCR)
+						檢驗日期 :&nbsp;<input type="text" placeholder="日期格式(西元年-月-日)" id="TN03-1" readonly="readonly" style="cursor:pointer;">
+						<br>檢驗醫院 :&nbsp;<input type="text" placeholder="請填檢驗醫院" id="TN03-2">
+						</label>
+					</span></p>			
+					<p style="color: red;"><b>若經查發現居家快篩陰性證明有造假事實，可依據傳染病防治法第36條及第70條規定，最高可開罰新台幣1萬5000元罰鍰。</b></p>
+				</div>
+			</div>
+			
+			<br>
+			
+			<div>
+				<div class="title">
+					<b>Travel history<br>旅遊史:最近21日內旅遊史?	</b>
+				</div>
+				<div class="bg">
+					<p><span><label><input type="checkbox" value="00" name="nonT" id="nonT" class="cfmsw">無</label></span></p>
+					<p><span><label><input type="checkbox" value="01" name="havT"  class="cfmsw">自身曾至國外旅遊<input type="text" placeholder="請填國家名以及入境日期" id="TC01"></label></span></p>
+					<p><span><label><input type="checkbox" value="02" name="havT"  class="cfmsw">親友曾至國外旅遊<input type="text" placeholder="請填國家名以及入境日期" id="TC02"></label></span></p>
+					<p><span><label><input type="checkbox" value="03" name="havT"  class="cfmsw">家屬曾至國外旅遊<input type="text" placeholder="請填國家名以及入境日期" id="TC03"></label></span></p>			
+				</div>
+			</div>
+			<br>
+			<div>
+				<div class="title"><b>Occupation<br>職業別:您的職業別為何?</b></div>
+				<div class="bg">
+					<p><span><label><input type="checkbox" value="00" name="nonO" id="nonO" class="cfmsw">無</label></span></p>
+					<p><span><label><input type="checkbox" value="01" name="havO" class="cfmsw">醫療工作者</label></span></p>
+					<p><span><label><input type="checkbox" value="02" name="havO" class="cfmsw">交通運輸業</label></span></p>
+					<p><span><label><input type="checkbox" value="03" name="havO" class="cfmsw">旅遊業</label></span></p>
+					<p><span><label><input type="checkbox" value="04" name="havO" class="cfmsw">旅館業</label></span></p>
+					<p><span><label><input type="checkbox" value="05" name="havO" class="cfmsw">航空服務業</label></span></p>
+					<p><span><label><input type="checkbox" value="06" name="havO" id="O06" class="cfmsw">其他 : <input type="text" placeholder="請填職業別"  id="OC06"></label></span></p>
+				</div>
+			</div>
+			<br>
+			<div>
+				<div class="title"><b>Contact history<br>接觸史:您近期接觸及出入場所?</b></div>
+				<div class="bg">
+					<p><span><label><input type="checkbox" value="00" name="nonCH" id="nonCH" class="cfmsw">無</label></span></p>
+					<p><span><label><input type="checkbox" value="01" name="havCH" class="cfmsw">曾至醫院、診所就醫</label></span></p>
+					<p><span><label><input type="checkbox" value="02" name="havCH" class="cfmsw">曾出入機場、觀光景點及其他頻繁接觸外國人場所</label></span></p>
+					<p><span><label><input type="checkbox" value="03" name="havCH" class="cfmsw">曾參與公眾集會(宗教/政治/學術/藝文活動)</label></span></p>
+					<p><span><label><input type="checkbox" value="04" name="havCH" class="cfmsw">曾參與公眾集會(開學/畢業典禮/婚喪喜慶/運動賽事等聚眾活動)</label></span></p>
+					<p><span><label><input type="checkbox" value="05" name="havCH" class="cfmsw">野生動物與禽鳥接觸</label></span></p>
+					<p><span><label><input type="checkbox" value="06" name="havCH" id="CH06" class="cfmsw">其他 : <input type="text" placeholder="請填接觸史" id="CHC06"></label></span></p>	
+				</div>
+			</div>
+			<br>
+			<div>
+				<div class="title"><b>Cluster<br>是否群聚:您近一個月內群聚史?</b></div>
+				<div class="bg">
+					<p><span><label><input type="checkbox" value="00" name="nonCL" id="nonCL" class="cfmsw">無</label></span></p>
+					<p><span><label><input type="checkbox" value="01" name="havCL" id="CL01" class="cfmsw">同住家人正在居家隔離</label></span></p>
+					<p><span><label><input type="checkbox" value="02" name="havCL" id="CL02" class="cfmsw">同住家人正在居家檢疫</label></span></p>
+					<p><span><label><input type="checkbox" value="03" name="havCL" id="CL03" class="cfmsw">同住家人正在自主健康管理，日期 <input type="text" placeholder="日期格式(西元年-月-日)" id="CLC03" maxlength="10" readonly="readonly" style="cursor:pointer;"></label></span></p>
+					<p><span><label><input type="checkbox" value="04" name="havCL" class="cfmsw">家人也有發燒或呼吸道症狀</label></span></p>
+					<p><span><label><input type="checkbox" value="05" name="havCL" class="cfmsw">朋友也有發燒或呼吸道症狀</label></span></p>
+					<p><span><label><input type="checkbox" value="06" name="havCL" class="cfmsw">同事也有發燒或呼吸道症狀</label></span></p>				
+				</div>
+			</div>
+			<br>
+			<div>
+				<div class="title"><b>Statement<br>聲明</b></div>
+				<div class="bg">
+					<p><span><label for="stm"><b>本人保證所填資料屬實。若有隱匿將接受傳染病防治法等法規之追訴究責。</b></label><input type="checkbox" class="cfmsw" id="stm"></span></p>	
+				</div>
+			</div>
+			<br>
+			<div align="center"  class="bg">
+				<div id="err"></div>
+				<input type="button" value="送出資料" id="btnsend" class="btn2">
+			</div>
+		</div>
+		<div id="ifsuccess" class="bg" style="background-color: #C0C0C0;" hidden>
+			<p>您已預約成功</p><br>
+			<p style="color: blue; font-size: 20pt;">
+			完成預約，請擷取畫面，方便管制口人員檢閱。</br>
+			</p>
+			
+			<div id='ks'>
+				<div style="position: relative;color:Maroon;">開放探病時間:</div>
+				
+				<div style="position: relative;color:Maroon;">
+					1.	一般病房、崇德病房、身心科病房：上午11:00-12:00
+				</div>
+				<div style="position: relative;color:Maroon;">
+					2.	加護病房1-30床：上午10:30-11:00
+				</div>
+				<div style="position: relative;color:Maroon;">
+					3.	加護病房31-76床、呼吸加護病房：上午11:15-11:45
+				</div>
+				<div style="position: relative;color:Maroon;">
+					4.	急診/小兒/新生兒加護病房、呼吸照護病房：上午10:30-11:00
+				</div>
+				<div style="position: relative;color:Maroon;">
+					5.	燒燙傷加護病房：上午11:30-12:00
+				</div>
+				<div style="position: relative;color:Maroon;">
+					6.	嬰兒病房、病嬰室：上午11:00-11:30
+				</div>
+			</div>
+			
+			<div id='pt' hidden="hidden">
+				<div style="position: relative;color:Maroon;">開放探病時間:</div>
+				<div style="position: relative;color:Maroon;">
+					1.	一般病房、加護病房、嬰兒病房、病嬰室：上午10:30-11:00
+				</div>
+			</div>
+			
+			 
+			<!-- 一些資訊 -->
+			<p>
+				<label for="Pnmend"><b>病人姓名:</b></label>
+				<input type="text" id="Pnmend" size="10" readonly="readonly" >
+			</p>
+			<p>
+				<label for="Prnend"><b>所屬病房:</b></label>
+				<input type="text" id="Prnend" size="10" readonly="readonly">
+			</p>	
+			<p>
+				<label for="Pbnend"><b>所屬病床:</b></label>
+				<input type="text" id="Pbnend" size="10" readonly="readonly">
+			</p>
+			<p>
+				<label for="Vidend"><b>您的身分證/居留證號:</b></label>
+				<input type="text" id="Vidend" size="10" readonly="readonly">
+			</p>
+			<p>
+				<label for="Vnmend"><b>您的姓名:</b></label>
+				<input type="text" id="Vnmend" size="10" readonly="readonly">
+			</p>
+			<p>
+				<label for="Vrelend"><b>您與病人的關係:</b></label>
+				<input type="text" id="Vrelend" size="10" readonly="readonly">
+			</p>
+			<p>
+				<label for="Vndt"><b>您預約的日期:</b></label>
+				<div id="Vndt" style="color: red; font-size: 24pt;"></div>
+			</p>
+			
+		</div>
+		<div id="ifrpt" class="bg" style="background-color: #C0C0C0;">
+			<p>您預約失敗</p><br>
+			<!-- 一些資訊 -->
+			<p>
+				您有選擇日期重複，請您重新輸入!!
+			</p>
+			<div align="center">
+				<input type="button" id="reset" class="btn2" value="修改資料">
+			</div>
+		</div>
+		<div id="ificu" class="bg" style="background-color: #C0C0C0;">
+			<h3>目前停止進行探病預約</h3>
+			<!-- 一些資訊 -->	
+			<p>					
+				<div style="position: relative;color:Maroon;">
+					一、	自111/1/12日起全面禁止訪客。
+				</div>
+				<div style="position: relative;color:Maroon;">
+					二、本院配合政府防疫政策，落實病房探視實名制，探病者須遵守探病時段、人數限制及出具篩檢陰性證明等規定，請務必於網站預約申請。			
+				</div>
+				<div style="position: relative;color:Maroon;">
+					三、探病者須完整接種疫苗2劑且滿14天以上(請探病者備妥黃卡或數位證明)；未符合者應檢附3日內PCR檢驗陰性報告。			
+				</div>
+				<div style="position: relative; left: 20px; color:Maroon; width: 80%;">
+					
+				</div>
+			</p>
+		</div>
+		<input type="hidden" id="hid" value="1A0">
+	</body>
+</html>
